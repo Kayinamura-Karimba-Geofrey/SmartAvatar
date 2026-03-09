@@ -2,7 +2,7 @@ fastapi
 uvicorn
 python-multipart
 openai-whisper
-TTS
+pyttsx3
 torch
 torchaudio
 soundfile

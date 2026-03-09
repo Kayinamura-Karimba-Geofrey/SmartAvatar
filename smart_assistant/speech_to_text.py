@@ -7,6 +7,11 @@ class STTEngine:
         Initializes the Speech-to-Text engine using OpenAI's Whisper model.
         Available models: tiny, base, small, medium, large.
         """
+        # Dynamically inject the local FFmpeg binary into the environment PATH for this session
+        local_ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_bin")
+        if os.path.exists(local_ffmpeg_path):
+            os.environ["PATH"] = f"{local_ffmpeg_path}{os.pathsep}{os.environ.get('PATH', '')}"
+            
         print(f"Loading Whisper model '{model_name}'...")
         self.model = whisper.load_model(model_name)
         
