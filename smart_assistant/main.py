@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, File, UploadFile, Request
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import shutil
 import os
@@ -13,12 +14,27 @@ app = FastAPI(
     description="An API supporting Voice and Text interaction"
 )
 
-# Initialize engines. This is done globally so models stay loaded in memory.
-# Note: Loading Whisper and Coqui TTS will take a few moments upon server startup.
+# Initialize engines
 print("Starting up the FastAPI application...")
 stt_engine = STTEngine()
 tts_engine = TTSEngine()
 response_engine = ResponseEngine()
+
+# Mount static files
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def get_index():
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "Index.html not found. Please wait while I create it."
+
 
 class TextRequest(BaseModel):
     text: str
