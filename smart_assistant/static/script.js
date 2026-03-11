@@ -7,40 +7,86 @@ const assistantText = document.getElementById('assistant-text');
 const avatar = document.getElementById('avatar');
 
 let isRecording = false;
-let mediaRecorder;
+let mediaRecorder = null;
 let audioChunks = [];
+let currentAudio = null; // Track playing audio so we can stop it
 
-// Handle Audio Recording
+// Get the best supported MIME type for recording
+function getSupportedMimeType() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return ''; // Let the browser decide
+}
+
 async function startRecording() {
+    // Stop any playing audio
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        const mimeType = getSupportedMimeType();
+        const options = mimeType ? { mimeType } : {};
+
+        mediaRecorder = new MediaRecorder(stream, options);
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
-            audioChunks.push(event.data);
+            if (event.data && event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
         };
 
         mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            await sendVoiceData(audioBlob);
+            // Stop all tracks to release the microphone
+            stream.getTracks().forEach(track => track.stop());
+
+            if (audioChunks.length === 0) {
+                statusText.innerText = 'No audio captured';
+                return;
+            }
+
+            const mimeUsed = mediaRecorder.mimeType || 'audio/webm';
+            const ext = mimeUsed.includes('ogg') ? '.ogg' : mimeUsed.includes('mp4') ? '.mp4' : '.webm';
+            const audioBlob = new Blob(audioChunks, { type: mimeUsed });
+            console.log(`Recorded ${audioBlob.size} bytes as ${mimeUsed}`);
+
+            if (audioBlob.size < 1000) {
+                statusText.innerText = 'Audio too short, try again';
+                return;
+            }
+
+            await sendVoiceData(audioBlob, ext);
         };
 
-        mediaRecorder.start();
+        mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event.error);
+            statusText.innerText = 'Recording error';
+            isRecording = false;
+            micBtn.classList.remove('active');
+            avatar.classList.remove('listening');
+        };
+
+        // Request data every 250ms to ensure we get chunks
+        mediaRecorder.start(250);
         isRecording = true;
         micBtn.classList.add('active');
         avatar.classList.add('listening');
         statusText.innerText = 'Listening...';
+        console.log('Recording started with mimeType:', mediaRecorder.mimeType);
     } catch (err) {
-        console.error('Error accessing microphone:', err);
+        console.error('Mic error:', err);
         statusText.innerText = 'Mic Access Denied';
     }
 }
 
 function stopRecording() {
-    if (mediaRecorder && isRecording) {
+    if (mediaRecorder && isRecording && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
         isRecording = false;
         micBtn.classList.remove('active');
         avatar.classList.remove('listening');
@@ -48,17 +94,21 @@ function stopRecording() {
     }
 }
 
-async function sendVoiceData(blob) {
+async function sendVoiceData(blob, ext = '.webm') {
     const formData = new FormData();
-    formData.append('audio_file', blob, 'recording.webm');
+    formData.append('audio_file', blob, `recording${ext}`);
 
     try {
+        statusText.innerText = 'Processing...';
         const response = await fetch('/voice', {
             method: 'POST',
             body: formData,
         });
 
-        if (!response.ok) throw new Error('Server error');
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Server error: ${response.status}`);
+        }
 
         const transcribed = response.headers.get('X-Transcribed-Text');
         const reply = response.headers.get('X-Response-Text');
@@ -71,51 +121,50 @@ async function sendVoiceData(blob) {
         playResponseAudio(audioUrl);
 
     } catch (error) {
-        console.error('Error sending voice:', error);
-        statusText.innerText = 'Error occurred';
+        console.error('Voice send error:', error);
+        statusText.innerText = 'Error: ' + error.message;
     }
 }
 
 function playResponseAudio(url) {
-    const audio = new Audio(url);
+    if (currentAudio) {
+        currentAudio.pause();
+    }
+    currentAudio = new Audio(url);
     statusText.innerText = 'Speaking...';
-    audio.play();
-    audio.onended = () => {
+    currentAudio.play().catch(err => {
+        console.error('Audio playback error:', err);
+        statusText.innerText = 'Playback error';
+    });
+    currentAudio.onended = () => {
         statusText.innerText = 'Ready';
+        URL.revokeObjectURL(url); // Free memory
+        currentAudio = null;
     };
 }
 
-// Handle Text Input (Existing modified to use server response)
+// Text input handler
 async function processInput(text) {
     try {
+        statusText.innerText = 'Processing...';
         const response = await fetch('/text', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ text: text }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
         });
-
         const data = await response.json();
         const reply = data.response;
-        
         assistantText.innerText = reply;
-        
-        // For text input, we still use synthesized speech but could also fetch audio from server if we had an endpoint
-        // For now, let's use the browser TTS for text input to keep it fast, 
-        // OR better yet, we could have a text-to-speech endpoint.
-        speak(reply); 
+        speak(reply);
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Text error:', error);
         statusText.innerText = 'Error occurred';
     }
 }
 
-// Browser TTS Fallback/Utility
 function speak(text) {
     const synth = window.speechSynthesis;
     if (synth.speaking) synth.cancel();
-    
     const utterThis = new SpeechSynthesisUtterance(text);
     utterThis.onend = () => statusText.innerText = 'Ready';
     statusText.innerText = 'Speaking...';
@@ -136,7 +185,6 @@ async function handleTextSubmit() {
     if (text) {
         textInput.value = '';
         userText.innerText = text;
-        statusText.innerText = 'Processing...';
         await processInput(text);
     }
 }
