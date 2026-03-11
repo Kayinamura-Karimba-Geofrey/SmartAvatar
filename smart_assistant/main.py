@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import shutil
 import os
+import time
 
 from speech_to_text import STTEngine
 from text_to_speech import TTSEngine
@@ -64,21 +65,35 @@ async def handle_voice(audio_file: UploadFile = File(...)):
     output_audio_path = f"response_{os.path.splitext(audio_file.filename)[0]}.wav"
     
     try:
+        start_total = time.time()
+        
         # 1. Save uploaded file temporarily to disk
+        start_save = time.time()
         with open(temp_raw_path, "wb") as buffer:
             shutil.copyfileobj(audio_file.file, buffer)
+        print(f"DEBUG: Save raw took {time.time() - start_save:.2f}s")
             
         # 1.5 Convert uploaded audio to .wav
+        start_conv = time.time()
         convert_to_wav(temp_raw_path, temp_wav_path)
+        print(f"DEBUG: Conversion took {time.time() - start_conv:.2f}s")
 
         # 2. Convert Audio to Text (STT)
+        start_stt = time.time()
         user_text = stt_engine.transcribe(temp_wav_path)
+        print(f"DEBUG: STT took {time.time() - start_stt:.2f}s")
         
         # 3. Generate Response
+        start_resp = time.time()
         response_text = response_engine.generate_response(user_text)
+        print(f"DEBUG: Response engine took {time.time() - start_resp:.2f}s")
         
         # 4. Convert Response to Audio (TTS)
+        start_tts = time.time()
         tts_engine.synthesize(response_text, output_audio_path)
+        print(f"DEBUG: TTS took {time.time() - start_tts:.2f}s")
+        
+        print(f"DEBUG: Total processing took {time.time() - start_total:.2f}s")
         
         # Clean up input temporary files
         if os.path.exists(temp_raw_path):

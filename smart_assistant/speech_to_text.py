@@ -2,7 +2,7 @@ import whisper
 import os
 
 class STTEngine:
-    def __init__(self, model_name="base"):
+    def __init__(self, model_name="tiny"):
         """
         Initializes the Speech-to-Text engine using OpenAI's Whisper model.
         Available models: tiny, base, small, medium, large.

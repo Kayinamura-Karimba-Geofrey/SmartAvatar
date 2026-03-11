@@ -8,28 +8,26 @@ class TTSEngine:
         """
         print("Loading pyttsx3 TTS model...")
         self.engine = pyttsx3.init()
+        # Set speaking rate (optional speed up)
+        self.engine.setProperty('rate', 175) 
         
     def speak(self, text: str, save_path: str = None):
         """
-        Speaks the text out loud directly. Re-initializes for stability.
+        Speaks the text out loud directly.
         """
-        engine = pyttsx3.init()
         print(f"Speaking: '{text}'")
-        engine.say(text)
+        self.engine.say(text)
         if save_path:
-            engine.save_to_file(text, save_path)
-        engine.runAndWait()
-        engine.stop() # Explicitly stop to free the driver
+            self.engine.save_to_file(text, save_path)
+        self.engine.runAndWait()
 
     def synthesize(self, text: str, output_path: str = "output.wav") -> str:
         """
         Converts text to speech and saves it as a WAV file.
         """
-        engine = pyttsx3.init()
         print(f"Synthesizing speech for: '{text}'")
-        engine.save_to_file(text, output_path)
-        engine.runAndWait()
-        engine.stop()
+        self.engine.save_to_file(text, output_path)
+        self.engine.runAndWait()
         return output_path
 
 if __name__ == "__main__":
