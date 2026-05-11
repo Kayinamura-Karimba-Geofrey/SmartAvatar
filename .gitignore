@@ -51,4 +51,4 @@ error_log.txt
 temp_auto_push.bat
 temp_interactive_push.bat
 .gitignore
-.vscode/
+branch_structure.json
