@@ -48,3 +48,6 @@ ffmpeg_extracted/
 traceback.txt
 error_output.txt
 error_log.txt
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
