@@ -1,8 +1,18 @@
 import argparse
 import os
-import platform
+import sys
+from dotenv import load_dotenv
+
+# Add project root and smart_assistant to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "smart_assistant"))
 
 from response_engine import ResponseEngine
+from elevenlabs_tts import ElevenLabsTTSEngine
+from speech_to_text import STTEngine
+
+# Load environment variables
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 def main():
     parser = argparse.ArgumentParser(description="CLI for Smart Conversational Assistant")
@@ -41,11 +51,9 @@ def main():
             print(f"Error: Audio file '{args.audio}' not found.")
             return
             
-        print("Loading heavy ML audio models...")
-        from speech_to_text import STTEngine
-        from text_to_speech import TTSEngine
+        print("Loading audio models...")
         stt_engine = STTEngine()
-        tts_engine = TTSEngine()
+        tts_engine = ElevenLabsTTSEngine()
         
         print("="*50)
         print(f"Processing audio file: {args.audio}")
@@ -57,9 +65,9 @@ def main():
         response_text = response_engine.generate_response(transcribed_text)
         print(f"Assistant says: '{response_text}'")
         
-        # Speak the response out loud and save it in one go (prevents blocking bugs)
+        # Synthesize the response
         output_file = "cli_response.wav"
-        tts_engine.speak(response_text, save_path=output_file)
+        tts_engine.synthesize(response_text, output_file)
         
         print(f"\nResponse audio saved to: {output_file}")
         print("\n" + "="*50)
@@ -84,7 +92,8 @@ def main():
                     response = response_engine.generate_response(user_input)
                 
                 print(f"Assistant: {response}")
-                tts_engine.speak(response)
+                # For CLI follow-up, we'll just save it to a file
+                tts_engine.synthesize(response, "cli_followup.wav")
                 
             except KeyboardInterrupt:
                 print("\nGoodbye!")

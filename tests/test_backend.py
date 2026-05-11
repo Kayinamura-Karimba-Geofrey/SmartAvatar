@@ -3,8 +3,10 @@ import sys
 import uuid
 from dotenv import load_dotenv
 
-# Add the current directory to sys.path to ensure imports work
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the project root to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add smart_assistant to sys.path
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "smart_assistant"))
 
 from response_engine import ResponseEngine
 from elevenlabs_tts import ElevenLabsTTSEngine
