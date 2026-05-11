@@ -1,9 +1,6 @@
-fastapi
-uvicorn
-python-multipart
-openai-whisper
-pyttsx3
-torch
-torchaudio
-soundfile
-numpy
+flask
+requests
+elevenlabs
+python-dotenv
+openai
+pydantic

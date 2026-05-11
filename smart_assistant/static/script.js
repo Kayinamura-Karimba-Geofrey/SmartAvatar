@@ -5,6 +5,13 @@ const statusText = document.getElementById('status');
 const userText = document.getElementById('user-text');
 const assistantText = document.getElementById('assistant-text');
 const avatar = document.getElementById('avatar');
+const conversationDisplay = document.querySelector('.conversation-display');
+
+function scrollToBottom() {
+    setTimeout(() => {
+        conversationDisplay.scrollTop = conversationDisplay.scrollHeight;
+    }, 50);
+}
 
 let isRecording = false;
 let mediaRecorder = null;
@@ -113,8 +120,14 @@ async function sendVoiceData(blob, ext = '.webm') {
         const transcribed = response.headers.get('X-Transcribed-Text');
         const reply = response.headers.get('X-Response-Text');
 
-        if (transcribed) userText.innerText = transcribed;
-        if (reply) assistantText.innerText = reply;
+        if (transcribed) {
+            userText.innerText = transcribed;
+            scrollToBottom();
+        }
+        if (reply) {
+            assistantText.innerText = reply;
+            scrollToBottom();
+        }
 
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
@@ -155,6 +168,7 @@ async function processInput(text) {
         const data = await response.json();
         const reply = data.response;
         assistantText.innerText = reply;
+        scrollToBottom();
         speak(reply);
     } catch (error) {
         console.error('Text error:', error);
@@ -185,6 +199,7 @@ async function handleTextSubmit() {
     if (text) {
         textInput.value = '';
         userText.innerText = text;
+        scrollToBottom();
         await processInput(text);
     }
 }

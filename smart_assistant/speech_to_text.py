@@ -1,24 +1,28 @@
-import whisper
 import os
 
 class STTEngine:
     def __init__(self, model_name="tiny"):
         """
-        Initializes the Speech-to-Text engine using OpenAI's Whisper model.
-        Available models: tiny, base, small, medium, large.
+        Placeholder for Speech-to-Text engine.
+        Original Whisper implementation was missing from the environment.
         """
-        # Dynamically inject the local FFmpeg binary into the environment PATH for this session
-        local_ffmpeg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_bin")
-        if os.path.exists(local_ffmpeg_path):
-            os.environ["PATH"] = f"{local_ffmpeg_path}{os.pathsep}{os.environ.get('PATH', '')}"
-            
-        print(f"Loading Whisper model '{model_name}'...")
-        self.model = whisper.load_model(model_name)
+        try:
+            import whisper
+            print(f"Loading Whisper model '{model_name}'...")
+            self.model = whisper.load_model(model_name)
+            self.is_placeholder = False
+        except ImportError:
+            print("WARNING: Whisper library not found. STT will be disabled (placeholder mode).")
+            self.model = None
+            self.is_placeholder = True
         
     def transcribe(self, audio_file_path: str) -> str:
         """
         Transcribes the given audio file to text.
         """
+        if self.is_placeholder:
+            return "[STT Disabled: Whisper library not installed]"
+            
         if not os.path.exists(audio_file_path):
             raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
             
@@ -27,8 +31,5 @@ class STTEngine:
         return result["text"].strip()
 
 if __name__ == "__main__":
-    # Example usage for testing locally
     stt = STTEngine()
-    # Create a dummy audio file first or provide a real path to test
-    # text = stt.transcribe("sample_audio.wav")
-    # print(f"Transcribed Text: {text}")
+    print(f"STT Mode: {'Placeholder' if stt.is_placeholder else 'Active'}")
